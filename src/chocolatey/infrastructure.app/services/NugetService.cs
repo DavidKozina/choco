@@ -37,6 +37,7 @@ namespace chocolatey.infrastructure.app.services
     using Environment = System.Environment;
     using IFileSystem = filesystem.IFileSystem;
     using chocolatey.infrastructure.app.utility;
+    using System.Diagnostics;
 
     //todo - this monolith is too large. Refactor once test coverage is up.
 
@@ -434,7 +435,6 @@ folder.");
                 uninstallSuccessAction: null,
                 addUninstallHandler: true);
 
-
             foreach (string packageName in packageNames.or_empty_list_if_null())
             {
                 //todo: get smarter about realizing multiple versions have been installed before and allowing that
@@ -467,6 +467,7 @@ folder.");
                 }
 
                 IPackage availablePackage = packageManager.SourceRepository.FindPackage(packageName, version, config.Prerelease, allowUnlisted: false);
+
                 if (availablePackage == null)
                 {
                     var logMessage = @"{0} not installed. The package was not found with the source(s) listed.
@@ -518,9 +519,46 @@ Please see https://chocolatey.org/docs/troubleshooting for more
                         packageName,
                         version == null ? null : version.ToString()))
                     {
-                        packageManager.InstallPackage(availablePackage, ignoreDependencies: config.IgnoreDependencies, allowPrereleaseVersions: config.Prerelease);
+                        int executeBatch (string command) {
+                            ProcessStartInfo processInfo;
+                            System.Diagnostics.Process process;
+
+                            processInfo = new ProcessStartInfo("cmd.exe", "/c " + command);
+                            processInfo.CreateNoWindow = true;
+                            processInfo.UseShellExecute = false;
+                            // *** Redirect the output ***
+                            processInfo.RedirectStandardError = true;
+                            processInfo.RedirectStandardOutput = true;
+
+                            process = System.Diagnostics.Process.Start(processInfo);
+                            process.WaitForExit();
+
+                            // *** Read the streams ***
+                            // Warning: This approach can lead to deadlocks, see Edit #2
+                            string output = process.StandardOutput.ReadToEnd();
+                            string error = process.StandardError.ReadToEnd();
+
+                            int exitCode = process.ExitCode;
+
+                            this.Log().Info(String.IsNullOrEmpty(output) ? "(none)" : output);
+                            this.Log().Debug("error>>" + (String.IsNullOrEmpty(error) ? "(none)" : error));
+                            this.Log().Debug("ExitCode: " + exitCode.ToString(), "ExecuteCommand");
+                            process.Close();
+
+                            return exitCode;
+                        }
+                        //packageManager.InstallPackage(availablePackage, ignoreDependencies: config.IgnoreDependencies, allowPrereleaseVersions: config.Prerelease);
                         //packageManager.InstallPackage(packageName, version, configuration.IgnoreDependencies, configuration.Prerelease);
-                        remove_nuget_cache_for_package(availablePackage);
+                        //remove_nuget_cache_for_package(availablePackage);
+                        string firstSpecifiedSource = config.Sources.to_string().Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault().to_string();
+                        string command1 = "nuget sources add -Name " + firstSpecifiedSource + " -Source " + firstSpecifiedSource + " -username " + config.SourceCommand.Username + " -password " + config.SourceCommand.Password;
+                        string command2 = "nuget install " +
+                            packageName +
+                            (version == null ? "" : "-Version " + version.ToString()) + " " +
+                            (firstSpecifiedSource == null ? "" : "-Source " + firstSpecifiedSource) + " "
+                             ;
+                        executeBatch(command1);
+                        executeBatch(command2);
                     }
                 }
                 catch (Exception ex)
@@ -678,6 +716,7 @@ Please see https://chocolatey.org/docs/troubleshooting for more
                 }
 
                 IPackage availablePackage = packageManager.SourceRepository.FindPackage(packageName, version, config.Prerelease, allowUnlisted: false);
+
                 config.Prerelease = originalPrerelease;
 
                 if (availablePackage == null)

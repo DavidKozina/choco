@@ -31,3 +31,4 @@ goto finish
 EXIT /B %ERRORLEVEL%
 
 :finish
+Echo DaviduvPridanyKonec

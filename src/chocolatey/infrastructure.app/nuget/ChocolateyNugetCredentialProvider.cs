@@ -44,10 +44,10 @@ namespace chocolatey.infrastructure.app.nuget
             {
                 throw new ArgumentNullException("uri");
             }
-
+            this.Log().Debug("URI: " + uri.to_string());
             if (retrying)
             {
-                this.Log().Warn("Invalid credentials specified.");
+                this.Log().Warn("Invalid credentials specified");
             }
 
             var configSourceUri = new Uri(INVALID_URL);
@@ -66,6 +66,7 @@ namespace chocolatey.infrastructure.app.nuget
             {
                 this.Log().Warn("Cannot determine uri from specified source:{0} {1}".format_with(Environment.NewLine, ex.Message));
             }
+            this.Log().Info("URI: " + configSourceUri.to_string());
 
             // did the user pass credentials and a source?
             if (_config.Sources.TrimEnd('/').is_equal_to(uri.OriginalString.TrimEnd('/')) || configSourceUri.Host.is_equal_to(uri.Host))
@@ -73,7 +74,6 @@ namespace chocolatey.infrastructure.app.nuget
                 if (!string.IsNullOrWhiteSpace(_config.SourceCommand.Username) && !string.IsNullOrWhiteSpace(_config.SourceCommand.Password))
                 {
                     this.Log().Debug("Using passed in credentials");
-
                     return new NetworkCredential(_config.SourceCommand.Username, _config.SourceCommand.Password);
                 }
             }
@@ -133,14 +133,12 @@ namespace chocolatey.infrastructure.app.nuget
 
             if (source == null)
             {
-                this.Log().Debug("Asking user for credentials for '{0}'".format_with(uri.OriginalString));
                 return get_credentials_from_user(uri, proxy, credentialType);
             }
             else
             {
                 this.Log().Debug("Using saved credentials");
             }
-            
             return new NetworkCredential(source.Username, NugetEncryptionUtility.DecryptString(source.EncryptedPassword));
         }
 

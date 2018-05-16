@@ -181,6 +181,7 @@ namespace chocolatey.infrastructure.app.nuget
         {
             IFileSystem nugetPackagesFileSystem = GetNuGetFileSystem(configuration, nugetLogger);
             IPackagePathResolver pathResolver = GetPathResolver(configuration, nugetPackagesFileSystem);
+
             var packageManager = new PackageManager(GetRemoteRepository(configuration, nugetLogger, packageDownloader), pathResolver, nugetPackagesFileSystem, GetLocalRepository(pathResolver, nugetPackagesFileSystem, nugetLogger))
                 {
                     DependencyVersion = DependencyVersion.Highest,
@@ -190,7 +191,7 @@ namespace chocolatey.infrastructure.app.nuget
             // GH-1548
             //note: is this a good time to capture a backup (for dependencies) / maybe grab remembered arguments here instead / and somehow get out of the endless loop! 
             //NOTE DO NOT EVER use this method - packageManager.PackageInstalling += (s, e) => { };
-            
+
             packageManager.PackageInstalled += (s, e) =>
                 {
                     var pkg = e.Package;
@@ -205,7 +206,6 @@ namespace chocolatey.infrastructure.app.nuget
 
                     if (installSuccessAction != null) installSuccessAction.Invoke(e);
                 };
-
             if (addUninstallHandler)
             {
                 // NOTE DO NOT EVER use this method, or endless loop - packageManager.PackageUninstalling += (s, e) =>
@@ -240,7 +240,6 @@ namespace chocolatey.infrastructure.app.nuget
                         }
                     };
             }
-
             return packageManager;
         }
     }
